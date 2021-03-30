@@ -36,9 +36,6 @@ import (
 // a) It shows you some useful primitives, and
 // b) it suppresses warnings for items not being imported.
 // Of course, this function can be deleted.
-
-//test
-
 func someUsefulThings() {
 	// Creates a random UUID
 	f := uuid.New()
