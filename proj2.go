@@ -78,7 +78,10 @@ func bytesToUUID(data []byte) (ret uuid.UUID) {
 
 // User is the structure definition for a user record.
 type User struct {
-	Username string
+	Username     string
+	Password     string
+	FilenameUUID map[string]int
+	PrivateKeyType
 
 	// You can add other fields here if you want...
 	// Note for JSON to marshal/unmarshal, the fields need to
@@ -90,8 +93,13 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	var userdata User
 	userdataptr = &userdata
 
+	var sigk userlib.DSSignKey
+	var verk userlib.SVerifyKey
+	sigk, verk, _ = userlib.PKEKeyGen()
+
 	//TODO: This is a toy implementation.
 	userdata.Username = username
+
 	//End of toy implementation
 
 	return &userdata, nil
