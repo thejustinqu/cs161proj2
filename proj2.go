@@ -96,7 +96,7 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	var sigk userlib.DSSignKey
 	var verk userlib.SVerifyKey
 	sigk, verk, _ = userlib.PKEKeyGen()
-
+	
 	//TODO: This is a toy implementation.
 	userdata.Username = username
 
