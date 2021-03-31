@@ -95,7 +95,6 @@ type User struct {
 
 // InitUser will be called a single time to initialize a new user.
 func InitUser(username string, password string) (userdataptr *User, err error) {
-
 	var userdata User
 	userdataptr = &userdata
 	var VerifyKey userlib.DSVerifyKey
