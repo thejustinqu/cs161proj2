@@ -78,10 +78,15 @@ func bytesToUUID(data []byte) (ret uuid.UUID) {
 
 // User is the structure definition for a user record.
 type User struct {
-	Username     string
-	Password     string
-	FilenameUUID map[string]int
-	PrivateKeyType
+	Username      string
+	Password      string
+	FilenameUUID  map[string]int
+	FilenameKey   map[string]userlib.PrivateKeyType
+	VerifyKey     userlib.PublicKeyType
+	SignKey       userlib.PrivateKeyType
+	EncryptionKey userlib.PublicKeyType
+	DecryptionKey userlib.PrivateKeyType
+	SharedFiles   map[string][]string
 
 	// You can add other fields here if you want...
 	// Note for JSON to marshal/unmarshal, the fields need to
@@ -90,16 +95,36 @@ type User struct {
 
 // InitUser will be called a single time to initialize a new user.
 func InitUser(username string, password string) (userdataptr *User, err error) {
+
 	var userdata User
 	userdataptr = &userdata
+	var SignKey userlib.DSSignKey
+	var VerifyKey userlib.DSVerifyKey
+	SignKey, VerifyKey, _ = userlib.DSKeyGen()
+	var DecryptionKey userlib.PKEDecKey
+	var EncryptionKey userlib.PKEEncKey
+	EncryptionKey, DecryptionKey, _ = userlib.PKEKeyGen()
 
-	var sigk userlib.DSSignKey
-	var verk userlib.SVerifyKey
-	sigk, verk, _ = userlib.PKEKeyGen()
-	
+	var byteArray = []byte(VerifyKey.PubKey.N.String() + username + password)
+	var hash = userlib.Hash(byteArray)
+	var slice = hash[0:16]
+	var VerifyUUID, _ = uuid.FromBytes(slice)
+
+	byteArray = []byte(EncryptionKey.PubKey.N.String() + username + password)
+	hash = userlib.Hash(byteArray)
+	slice = hash[0:16]
+	var EncryptionUUID, _ = uuid.FromBytes(slice)
+
 	//TODO: This is a toy implementation.
 	userdata.Username = username
+	userdata.Password = password
+	userdata.VerifyKey = VerifyKey
+	userdata.SignKey = SignKey
+	userdata.EncryptionKey = EncryptionKey
+	userdata.DecryptionKey = DecryptionKey
 
+	userlib.KeystoreSet(VerifyUUID.String(), VerifyKey)
+	userlib.KeystoreSet(EncryptionUUID.String(), EncryptionKey)
 	//End of toy implementation
 
 	return &userdata, nil
