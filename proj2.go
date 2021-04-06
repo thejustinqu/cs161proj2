@@ -117,7 +117,7 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 
 	var byteArrayUsername = []byte(username)
 	thisUserID, _ := uuid.FromBytes(byteArrayUsername)
-
+	userlib.DebugMsg("UserID initial is: %v", thisUserID)
 	//TODO: This is a toy implementation.
 	userdata.Username = username
 	userdata.Password = password
@@ -125,9 +125,9 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	userdata.SignKey = SignKey
 	userdata.EncryptionKey = EncryptionKey
 	userdata.DecryptionKey = DecryptionKey
-
+	//userlib.DebugMsg("UserInitData is: %v", userdata)
 	d, _ := json.Marshal(userdata)
-
+	//userlib.DebugMsg("d is: %v", d)
 	userlib.DatastoreSet(thisUserID, d)
 
 	userlib.KeystoreSet(VerifyUUID.String(), VerifyKey)
@@ -146,10 +146,12 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 
 	var byteArrayUsername = []byte(username)
 	thisUserID, _ := uuid.FromBytes(byteArrayUsername)
+	userlib.DebugMsg("UserID after is: %v", thisUserID)
 	var correctUserdata, _ = userlib.DatastoreGet(thisUserID)
+	userlib.DebugMsg("correctUserdata is: %v", correctUserdata)
 	userRet := User{}
-	json.Unmarshal(correctUserdata, userRet)
-	userlib.DebugMsg("UserPassword is: %v", userRet.Password)
+	json.Unmarshal(correctUserdata, &userRet)
+	userlib.DebugMsg("UserPassword is: %v", &userRet)
 	userlib.DebugMsg("Input Password is: %v", password)
 	if userRet.Password == password {
 		userdataptr = &userRet
