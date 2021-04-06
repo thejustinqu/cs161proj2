@@ -110,10 +110,13 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	var slice = hash[0:16]
 	var VerifyUUID, _ = uuid.FromBytes(slice)
 
-	byteArray = []byte(EncryptionKey.PubKey.N.String() + username + password)
-	hash = userlib.Hash(byteArray)
+	var byteArrayEncryption = []byte(EncryptionKey.PubKey.N.String() + username + password)
+	hash = userlib.Hash(byteArrayEncryption)
 	slice = hash[0:16]
 	var EncryptionUUID, _ = uuid.FromBytes(slice)
+
+	var byteArrayUsername = []byte(username)
+	thisUserID, _ := uuid.FromBytes(byteArrayUsername)
 
 	//TODO: This is a toy implementation.
 	userdata.Username = username
@@ -122,6 +125,10 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	userdata.SignKey = SignKey
 	userdata.EncryptionKey = EncryptionKey
 	userdata.DecryptionKey = DecryptionKey
+
+	d, _ := json.Marshal(userdata)
+
+	userlib.DatastoreSet(thisUserID, d)
 
 	userlib.KeystoreSet(VerifyUUID.String(), VerifyKey)
 	userlib.KeystoreSet(EncryptionUUID.String(), EncryptionKey)
@@ -135,8 +142,25 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 func GetUser(username string, password string) (userdataptr *User, err error) {
 	var userdata User
 	userdataptr = &userdata
+	//need to perform error checks
 
-	return userdataptr, nil
+	var byteArrayUsername = []byte(username)
+	thisUserID, _ := uuid.FromBytes(byteArrayUsername)
+	var correctUserdata, _ = userlib.DatastoreGet(thisUserID)
+	userRet := User{}
+	json.Unmarshal(correctUserdata, userRet)
+	userlib.DebugMsg("UserPassword is: %v", userRet.Password)
+	userlib.DebugMsg("Input Password is: %v", password)
+	if userRet.Password == password {
+		userdataptr = &userRet
+		userlib.DebugMsg("Correct. You are now logged in!")
+
+		return userdataptr, nil
+	}
+
+	userlib.DebugMsg("Incorrect. Please try again.")
+
+	return nil, nil
 }
 
 // StoreFile is documented at:

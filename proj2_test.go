@@ -23,7 +23,7 @@ func clear() {
 	userlib.KeystoreClear()
 }
 
-func TestInit(t *testing.T) {
+func TestInits(t *testing.T) {
 	clear()
 	t.Log("Initialization test")
 
@@ -36,6 +36,15 @@ func TestInit(t *testing.T) {
 		t.Error("Failed to initialize user", err)
 		return
 	}
+
+	a, err1 := GetUser("alice", "fubar")
+
+	if err1!= nil {
+		t.Error("Failed to BLAH BLAH BLAH", err)
+		return
+	}
+
+	t.Log("Logged in to", a)
 	// t.Log() only produces output if you run with "go test -v"
 	t.Log("Got user", u)
 	// If you want to comment the line above,
