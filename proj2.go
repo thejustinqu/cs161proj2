@@ -95,23 +95,22 @@ type User struct {
 
 // InitUser will be called a single time to initialize a new user.
 func InitUser(username string, password string) (userdataptr *User, err error) {
-
 	var userdata User
 	userdataptr = &userdata
-	var SignKey userlib.DSSignKey
 	var VerifyKey userlib.DSVerifyKey
+	var SignKey userlib.DSSignKey
 	SignKey, VerifyKey, _ = userlib.DSKeyGen()
-	var DecryptionKey userlib.PKEDecKey
 	var EncryptionKey userlib.PKEEncKey
+	var DecryptionKey userlib.PKEDecKey
 	EncryptionKey, DecryptionKey, _ = userlib.PKEKeyGen()
 
-	var byteArray = []byte(VerifyKey.PubKey.N.String() + username + password)
+	var byteArray = []byte("VERIFY-KEY" + username + password)
 	var hash = userlib.Hash(byteArray)
 	var slice = hash[0:16]
 	var VerifyUUID, _ = uuid.FromBytes(slice)
 
-	var byteArrayEncryption = []byte(EncryptionKey.PubKey.N.String() + username + password)
-	hash = userlib.Hash(byteArrayEncryption)
+	byteArray = []byte("ENCRYPTION-KEY" + username + password)
+	hash = userlib.Hash(byteArray)
 	slice = hash[0:16]
 	var EncryptionUUID, _ = uuid.FromBytes(slice)
 
