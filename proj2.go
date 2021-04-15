@@ -113,10 +113,10 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	//userdata.Password = password
 	userByte := []byte(username)
 	pwByte := []byte(password)
-	userlib.DebugMsg("user is: %v", userByte)
-	userlib.DebugMsg("pw is: %v", pwByte)
+	//userlib.DebugMsg("user is: %v", userByte)
+	//userlib.DebugMsg("pw is: %v", pwByte)
 	argonKey := userlib.Argon2Key(pwByte, userByte, 16)
-	userlib.DebugMsg("argonke is: %v", argonKey)
+	//userlib.DebugMsg("argonke is: %v", argonKey)
 	userdata.Username = username
 	userdata.VerifyKey = VerifyKey
 	userdata.SignKey = SignKey
@@ -135,8 +135,8 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	randomBytesValue := userlib.RandomBytes(16)
 	SymEncValue := userlib.SymEnc(argonKey, randomBytesValue, newd)
 
-	userlib.DebugMsg("len(d) is: %v", len(d))
-	userlib.DebugMsg("len(newd) is: %v", len(newd))
+	//userlib.DebugMsg("len(d) is: %v", len(d))
+	//userlib.DebugMsg("len(newd) is: %v", len(newd))
 
 	var byteArrayUsername = []byte(username)
 	thisUserID, _ := uuid.FromBytes(byteArrayUsername)
@@ -196,7 +196,7 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 
 type Chunk struct {
 	UUID userlib.UUID
-	key  []byte
+	Key  []byte
 }
 
 // StoreFile is documented at:
@@ -220,19 +220,24 @@ func (userdata *User) StoreFile(filename string, data []byte) (err error) {
 	userlib.DatastoreSet(u, encdata)
 	var c Chunk
 	c.UUID = u
-	c.key = key
+	c.Key = key
 	var chunkarray []Chunk
-
+	key = userlib.RandomBytes(16)
 	u = uuid.New()
-	userlib.DebugMsg("pre store chunkarray: %v", chunkarray)
 	chunkarray = append(chunkarray, c)
-	userlib.DebugMsg("post store chunkarray: %v", chunkarray)
 	marshalled, _ := json.Marshal(chunkarray)
-	unmar := []Chunk{}
-	json.Unmarshal(marshalled, &unmar)
-	userlib.DebugMsg("post store unmar: %v", unmar)
-	userlib.DatastoreSet(u, marshalled)
+
+	remainder = len(marshalled) % 16
+	pad = make([]byte, 16-remainder)
+	for i := 0; i < 16-remainder; i++ {
+		pad[i] = byte(16 - remainder)
+	}
+	marshalled = append(marshalled, pad...)
+
+	encdata = userlib.SymEnc(key, userlib.RandomBytes(16), marshalled)
+	userlib.DatastoreSet(u, encdata)
 	userdata.FilenameUUID[filename] = u
+	userdata.FilenameKey[filename] = key
 
 	//userlib.DebugMsg("post store uuid: %v", userdata.FilenameUUID)
 	//userlib.DebugMsg("post store key: %v", userdata.FilenameKey)
@@ -255,20 +260,31 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 	userlib.DatastoreSet(u, encdata)
 	var c Chunk
 	c.UUID = u
-	c.key = key
+	c.Key = key
 
 	u = userdata.FilenameUUID[filename]
-	marshalleddata, _ := userlib.DatastoreGet(u)
+	key = userdata.FilenameKey[filename]
+
+	encdata, _ = userlib.DatastoreGet(u)
+	marshalleddata := userlib.SymDec(key, encdata)
+
+	lastbyte := marshalleddata[len(marshalleddata)-1]
+	marshalleddata = marshalleddata[0 : len(marshalleddata)-int(lastbyte)]
 
 	chunkarray := []Chunk{}
 	json.Unmarshal(marshalleddata, &chunkarray)
 
-	userlib.DebugMsg("pre append chunkarray: %v", chunkarray)
-
 	chunkarray = append(chunkarray, c)
 
-	userlib.DebugMsg("post append chunkarray: %v", chunkarray)
 	marshalled, _ := json.Marshal(chunkarray)
+
+	remainder = len(marshalled) % 16
+	pad = make([]byte, 16-remainder)
+	for i := 0; i < 16-remainder; i++ {
+		pad[i] = byte(16 - remainder)
+	}
+	marshalled = append(marshalled, pad...)
+
 	userlib.DatastoreSet(u, marshalled)
 
 	return nil
@@ -278,19 +294,32 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 // https://cs161.org/assets/projects/2/docs/client_api/loadfile.html
 func (userdata *User) LoadFile(filename string) (dataBytes []byte, err error) {
 	// ideas: can check with the owner's version to see if the file matches.
-	//TODO: This is a toy implementation.
 
-	storageKey, _ := uuid.FromBytes([]byte(filename + userdata.Username)[:16])
-	dataJSON, ok := userlib.DatastoreGet(storageKey)
-	if !ok {
-		return nil, errors.New(strings.ToTitle("File not found!"))
+	u := userdata.FilenameUUID[filename]
+	key := userdata.FilenameKey[filename]
+
+	encdata, _ := userlib.DatastoreGet(u)
+	marshalleddata := userlib.SymDec(key, encdata)
+
+	lastbyte := marshalleddata[len(marshalleddata)-1]
+	marshalleddata = marshalleddata[0 : len(marshalleddata)-int(lastbyte)]
+
+	chunkarray := []Chunk{}
+	json.Unmarshal(marshalleddata, &chunkarray)
+
+	filedata := make([]byte, 0)
+
+	for i := 0; i < len(chunkarray)-1; i++ {
+		chunk := chunkarray[i]
+		encdata, _ = userlib.DatastoreGet(chunk.UUID)
+		decdata := userlib.SymDec(key, encdata)
+
+		lastbyte := decdata[len(decdata)-1]
+		decdata = decdata[0 : len(decdata)-int(lastbyte)]
+		filedata = append(filedata, decdata...)
 	}
-	json.Unmarshal(dataJSON, &dataBytes)
-	//userlib.DebugMsg("post Append: %v", dataBytes)
-	return dataBytes, nil
-	//End of toy implementation
 
-	return
+	return filedata, nil
 }
 
 // ShareFile is documented at:
