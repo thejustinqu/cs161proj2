@@ -196,7 +196,7 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 
 type Chunk struct {
 	UUID userlib.UUID
-	key  []byte
+	Key  []byte
 }
 
 // StoreFile is documented at:
@@ -220,7 +220,7 @@ func (userdata *User) StoreFile(filename string, data []byte) (err error) {
 	userlib.DatastoreSet(u, encdata)
 	var c Chunk
 	c.UUID = u
-	c.key = key
+	c.Key = key
 	var chunkarray []Chunk
 
 	u = uuid.New()
@@ -255,7 +255,7 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 	userlib.DatastoreSet(u, encdata)
 	var c Chunk
 	c.UUID = u
-	c.key = key
+	c.Key = key
 
 	u = userdata.FilenameUUID[filename]
 	marshalleddata, _ := userlib.DatastoreGet(u)
