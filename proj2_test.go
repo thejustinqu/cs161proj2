@@ -1,5 +1,4 @@
 package proj2
-
 // You MUST NOT change these default imports.  ANY additional imports it will
 // break the autograder and everyone will be sad.
 
@@ -29,7 +28,13 @@ func TestInits(t *testing.T) {
 
 	// You can set this to false!
 	userlib.SetDebugStatus(true)
+	//ua, err := InitUser("aa", "")
+	//if err!= nil{
 
+	//	t.Error("failed", err)
+	//	return
+	//}
+	//t.Log("logged in to", ua)
 	u, err := InitUser("alice", "fubar")
 	if err != nil {
 		// t.Error says the test fails
@@ -39,12 +44,12 @@ func TestInits(t *testing.T) {
 
 	a, err1 := GetUser("alice", "fubar")
 
-	if err1!= nil {
-		t.Error("Failed to BLAH BLAH BLAH", err)
+	if err1 != nil {
+		t.Error("Failed to BLAH BLAH BLAH", err1)
 		return
 	}
 
-	t.Log("Logged in to", a)
+	t.Log("Logged in to", a.Username)
 	// t.Log() only produces output if you run with "go test -v"
 	t.Log("Got user", u)
 	// If you want to comment the line above,
@@ -53,6 +58,7 @@ func TestInits(t *testing.T) {
 }
 
 func TestStorage(t *testing.T) {
+	userlib.SetDebugStatus(true)
 	clear()
 	u, err := InitUser("alice", "fubar")
 	if err != nil {
@@ -61,17 +67,36 @@ func TestStorage(t *testing.T) {
 	}
 
 	v := []byte("This is a test")
-	u.StoreFile("file1", v)
+	err1 := u.StoreFile("file1", v)
+	if err1 != nil {
+		t.Error("Failed to upload", err1)
+		return
+	}
+	err3 := u.AppendFile("file1", v)
+	if err3 != nil {
+		t.Error("Failed to append", err3)
+		return
+	}
 
 	v2, err2 := u.LoadFile("file1")
 	if err2 != nil {
 		t.Error("Failed to upload and download", err2)
 		return
 	}
+
+	t.Log(v2)
 	if !reflect.DeepEqual(v, v2) {
 		t.Error("Downloaded file is not the same", v, v2)
 		return
 	}
+
+	v3, err4 := u.LoadFile("file1")
+	if err4 != nil {
+		t.Error("Failed to upload and download", err4)
+		return
+	}
+
+	t.Log(v3)
 }
 
 func TestInvalidFile(t *testing.T) {

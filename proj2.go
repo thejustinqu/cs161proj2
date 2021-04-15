@@ -80,13 +80,12 @@ func bytesToUUID(data []byte) (ret uuid.UUID) {
 type User struct {
 	Username      string
 	Password      string
-	FilenameUUID  map[string]int
-	FilenameKey   map[string]userlib.PrivateKeyType
+	FilenameUUID  map[string]userlib.UUID
+	FilenameKey   map[string][]byte
 	VerifyKey     userlib.PublicKeyType
 	SignKey       userlib.PrivateKeyType
 	EncryptionKey userlib.PublicKeyType
 	DecryptionKey userlib.PrivateKeyType
-	SharedFiles   map[string][]string
 
 	// You can add other fields here if you want...
 	// Note for JSON to marshal/unmarshal, the fields need to
@@ -95,6 +94,10 @@ type User struct {
 
 // InitUser will be called a single time to initialize a new user.
 func InitUser(username string, password string) (userdataptr *User, err error) {
+
+	if username == "" || password == "" {
+		return nil, errors.New("empty username or empty password - please fill them out.")
+	}
 	var userdata User
 	userdataptr = &userdata
 	var VerifyKey userlib.DSVerifyKey
@@ -104,39 +107,56 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	var DecryptionKey userlib.PKEDecKey
 	EncryptionKey, DecryptionKey, _ = userlib.PKEKeyGen()
 
-	var byteArray = []byte("VERIFY-KEY" + username + password)
-	var hash = userlib.Hash(byteArray)
-	var slice = hash[0:16]
-	var VerifyUUID, _ = uuid.FromBytes(slice)
-
-	byteArray = []byte("ENCRYPTION-KEY" + username + password)
-	hash = userlib.Hash(byteArray)
-	slice = hash[0:16]
-	var EncryptionUUID, _ = uuid.FromBytes(slice)
-
-	var byteArrayUsername = []byte(username)
-	thisUserID, _ := uuid.FromBytes(byteArrayUsername)
-	userlib.DebugMsg("UserID initial is: %v", thisUserID)
+	//userlib.DebugMsg("UserID initial is: %v", thisUserID)
 	//TODO: This is a toy implementation.
+	//userdata.Username = username
+	//userdata.Password = password
+	userByte := []byte(username)
+	pwByte := []byte(password)
+	userlib.DebugMsg("user is: %v", userByte)
+	userlib.DebugMsg("pw is: %v", pwByte)
+	argonKey := userlib.Argon2Key(pwByte, userByte, 16)
+	userlib.DebugMsg("argonke is: %v", argonKey)
 	userdata.Username = username
-	userdata.Password = password
 	userdata.VerifyKey = VerifyKey
 	userdata.SignKey = SignKey
 	userdata.EncryptionKey = EncryptionKey
 	userdata.DecryptionKey = DecryptionKey
+	userdata.FilenameUUID = make(map[string]userlib.UUID)
+	userdata.FilenameKey = make(map[string][]byte)
 	//userlib.DebugMsg("UserInitData is: %v", userdata)
 	d, _ := json.Marshal(userdata)
-	//userlib.DebugMsg("d is: %v", d)
-	userlib.DatastoreSet(thisUserID, d)
+	remainder := len(d) % 16
+	pad := make([]byte, 16-remainder)
+	for i := 0; i < 16-remainder; i++ {
+		pad[i] = byte(16 - remainder)
+	}
+	newd := append(d, pad...)
+	randomBytesValue := userlib.RandomBytes(16)
+	SymEncValue := userlib.SymEnc(argonKey, randomBytesValue, newd)
 
-	userlib.KeystoreSet(VerifyUUID.String(), VerifyKey)
-	userlib.KeystoreSet(EncryptionUUID.String(), EncryptionKey)
+	userlib.DebugMsg("len(d) is: %v", len(d))
+	userlib.DebugMsg("len(newd) is: %v", len(newd))
+
+	var byteArrayUsername = []byte(username)
+	thisUserID, _ := uuid.FromBytes(byteArrayUsername)
+	userlib.DatastoreSet(thisUserID, SymEncValue)
+
+	// userlib.KeystoreSet(VerifyUUID.String(), VerifyKey)
+	// userlib.KeystoreSet(EncryptionUUID.String(), EncryptionKey)
 	//End of toy implementation
+	//salt can be username
+	// for symmetric encryption, keylen is 16 bytes. sender and receiver use the same key. used for ec and dc
+	// CBC. break up message into blocs. encrypt each bloc together and
+	// encryupt marshalled data
+	// decrypt and then unmarshalled
+	// generate the argon2key based on correct password and username
 
 	return &userdata, nil
 }
 
 // GetUser is documented at:
+//https://cs161.org/proj2/crypto/symmetric_encryption.html
 // https://cs161.org/assets/projects/2/docs/client_api/getuser.html
 func GetUser(username string, password string) (userdataptr *User, err error) {
 	var userdata User
@@ -144,24 +164,39 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 	//need to perform error checks
 
 	var byteArrayUsername = []byte(username)
+
+	byteArrayPassword := []byte(password)
+	argonKey := userlib.Argon2Key(byteArrayPassword, byteArrayUsername, 16)
+
 	thisUserID, _ := uuid.FromBytes(byteArrayUsername)
-	userlib.DebugMsg("UserID after is: %v", thisUserID)
-	var correctUserdata, _ = userlib.DatastoreGet(thisUserID)
-	userlib.DebugMsg("correctUserdata is: %v", correctUserdata)
-	userRet := User{}
-	json.Unmarshal(correctUserdata, &userRet)
-	userlib.DebugMsg("UserPassword is: %v", &userRet)
-	userlib.DebugMsg("Input Password is: %v", password)
-	if userRet.Password == password {
-		userdataptr = &userRet
-		userlib.DebugMsg("Correct. You are now logged in!")
 
-		return userdataptr, nil
+	encrypted, error := userlib.DatastoreGet(thisUserID)
+	if !error {
+		return nil, errors.New(strings.ToTitle("Username not found!"))
 	}
+	returnvalue := userlib.SymDec(argonKey, encrypted)
 
-	userlib.DebugMsg("Incorrect. Please try again.")
+	padlength := returnvalue[len(returnvalue)-1]
+	d := returnvalue[0 : len(returnvalue)-int(padlength)]
+	//userlib.DebugMsg("returnvalue is: %v", returnvalue)
+	//userlib.DebugMsg("d is: %v", d)
 
-	return nil, nil
+	//userlib.DebugMsg("UserID after is: %v", thisUserID)
+	//var correctUserdata, _ = userlib.DatastoreGet(thisUserID)
+	//userlib.DebugMsg("correctUserdata is: %v", correctUserdata)
+	userRet := User{}
+	json.Unmarshal(d, &userRet)
+
+	userlib.DebugMsg("Correct. You are now logged in!")
+
+	//userlib.DebugMsg("Incorrect. Please try again.")errors.New(strings.ToTitle("Password Incorrect!"))
+
+	return &userRet, nil
+}
+
+type Chunk struct {
+	UUID userlib.UUID
+	key  []byte
 }
 
 // StoreFile is documented at:
@@ -169,31 +204,89 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 func (userdata *User) StoreFile(filename string, data []byte) (err error) {
 
 	//TODO: This is a toy implementation.
-	storageKey, _ := uuid.FromBytes([]byte(filename + userdata.Username)[:16])
-	jsonData, _ := json.Marshal(data)
-	userlib.DatastoreSet(storageKey, jsonData)
+	//storageKey, _ := uuid.FromBytes([]byte(filename + userdata.Username)[:16])
+	//jsonData, _ := json.Marshal(data)
+	//userlib.DatastoreSet(storageKey, jsonData)
 	//End of toy implementation
+	key := userlib.RandomBytes(16)
+	remainder := len(data) % 16
+	pad := make([]byte, 16-remainder)
+	for i := 0; i < 16-remainder; i++ {
+		pad[i] = byte(16 - remainder)
+	}
+	newdata := append(data, pad...)
+	u := uuid.New()
+	encdata := userlib.SymEnc(key, userlib.RandomBytes(16), newdata)
+	userlib.DatastoreSet(u, encdata)
+	var c Chunk
+	c.UUID = u
+	c.key = key
+	var chunkarray []Chunk
 
-	return
+	u = uuid.New()
+	userlib.DebugMsg("pre store chunkarray: %v", chunkarray)
+	chunkarray = append(chunkarray, c)
+	userlib.DebugMsg("post store chunkarray: %v", chunkarray)
+	marshalled, _ := json.Marshal(chunkarray)
+	unmar := []Chunk{}
+	json.Unmarshal(marshalled, &unmar)
+	userlib.DebugMsg("post store unmar: %v", unmar)
+	userlib.DatastoreSet(u, marshalled)
+	userdata.FilenameUUID[filename] = u
+
+	//userlib.DebugMsg("post store uuid: %v", userdata.FilenameUUID)
+	//userlib.DebugMsg("post store key: %v", userdata.FilenameKey)
+	return nil
 }
 
 // AppendFile is documented at:
 // https://cs161.org/assets/projects/2/docs/client_api/appendfile.html
 func (userdata *User) AppendFile(filename string, data []byte) (err error) {
-	return
+
+	key := userlib.RandomBytes(16)
+	remainder := len(data) % 16
+	pad := make([]byte, 16-remainder)
+	for i := 0; i < 16-remainder; i++ {
+		pad[i] = byte(16 - remainder)
+	}
+	newdata := append(data, pad...)
+	u := uuid.New()
+	encdata := userlib.SymEnc(key, userlib.RandomBytes(16), newdata)
+	userlib.DatastoreSet(u, encdata)
+	var c Chunk
+	c.UUID = u
+	c.key = key
+
+	u = userdata.FilenameUUID[filename]
+	marshalleddata, _ := userlib.DatastoreGet(u)
+
+	chunkarray := []Chunk{}
+	json.Unmarshal(marshalleddata, &chunkarray)
+
+	userlib.DebugMsg("pre append chunkarray: %v", chunkarray)
+
+	chunkarray = append(chunkarray, c)
+
+	userlib.DebugMsg("post append chunkarray: %v", chunkarray)
+	marshalled, _ := json.Marshal(chunkarray)
+	userlib.DatastoreSet(u, marshalled)
+
+	return nil
 }
 
 // LoadFile is documented at:
 // https://cs161.org/assets/projects/2/docs/client_api/loadfile.html
 func (userdata *User) LoadFile(filename string) (dataBytes []byte, err error) {
-
+	// ideas: can check with the owner's version to see if the file matches.
 	//TODO: This is a toy implementation.
+
 	storageKey, _ := uuid.FromBytes([]byte(filename + userdata.Username)[:16])
 	dataJSON, ok := userlib.DatastoreGet(storageKey)
 	if !ok {
 		return nil, errors.New(strings.ToTitle("File not found!"))
 	}
 	json.Unmarshal(dataJSON, &dataBytes)
+	//userlib.DebugMsg("post Append: %v", dataBytes)
 	return dataBytes, nil
 	//End of toy implementation
 
@@ -202,6 +295,7 @@ func (userdata *User) LoadFile(filename string) (dataBytes []byte, err error) {
 
 // ShareFile is documented at:
 // https://cs161.org/assets/projects/2/docs/client_api/sharefile.html
+//idea: shared files will now be under the username of the sharee.
 func (userdata *User) ShareFile(filename string, recipient string) (
 	accessToken uuid.UUID, err error) {
 
