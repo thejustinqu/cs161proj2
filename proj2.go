@@ -270,7 +270,7 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 
 	lastbyte := marshalleddata[len(marshalleddata)-1]
 	marshalleddata = marshalleddata[0 : len(marshalleddata)-int(lastbyte)]
-
+	userlib.DebugMsg("post depad marshalled: %v", marshalleddata)
 	chunkarray := []Chunk{}
 	json.Unmarshal(marshalleddata, &chunkarray)
 
@@ -283,9 +283,12 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 	for i := 0; i < 16-remainder; i++ {
 		pad[i] = byte(16 - remainder)
 	}
+
 	marshalled = append(marshalled, pad...)
 	
-	userlib.DatastoreSet(u, marshalled)
+	encryptedData := userlib.SymEnc(key, userlib.RandomBytes(16), marshalled) //randomIV (second argument) may be a problem
+	userlib.DebugMsg("APPEND marshalled: %v", marshalled)
+	userlib.DatastoreSet(u, encryptedData)
 
 	return nil
 }
@@ -300,14 +303,14 @@ func (userdata *User) LoadFile(filename string) (dataBytes []byte, err error) {
 
 	encdata, _ := userlib.DatastoreGet(u)
 	marshalleddata := userlib.SymDec(key, encdata)
-	userlib.DebugMsg("Marshalled Data before depadding: %v", marshalleddata)
+	//userlib.DebugMsg("Marshalled Data before depadding: %v", marshalleddata)
 	lastbyte := marshalleddata[len(marshalleddata)-1]
 	
 	marshalleddata = marshalleddata[0 : len(marshalleddata)-int(lastbyte)]
-	userlib.DebugMsg("Marshalled Data after depadding: %v", marshalleddata)
+	//userlib.DebugMsg("Marshalled Data after depadding: %v", marshalleddata)
 	chunkarray := []Chunk{}
 	json.Unmarshal(marshalleddata, &chunkarray)
-	userlib.DebugMsg("chunkarray: %v", chunkarray)
+	//userlib.DebugMsg("chunkarray: %v", chunkarray)
 	filedata := make([]byte, 0)
 	
 	for i := 0; i < len(chunkarray); i++ {

@@ -67,7 +67,7 @@ func TestStorage(t *testing.T) {
 	}
 
 	v := []byte("This is a test")
-
+	intendedAppend := []byte("This is a testThis is a test")
 	err1 := u.StoreFile("file1", v)
 	if err1 != nil {
 		t.Error("Failed to upload", err1)
@@ -87,7 +87,7 @@ func TestStorage(t *testing.T) {
 	}
 
 	t.Log(v2)
-	if !reflect.DeepEqual(v, v2) {
+	if !reflect.DeepEqual(intendedAppend, v2) {
 		t.Error("Downloaded file is not the same", v, v2)
 		return
 	}
