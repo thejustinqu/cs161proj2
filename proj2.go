@@ -142,7 +142,8 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	thisUserID, _ := uuid.FromBytes(byteArrayUsername)
 	userlib.DatastoreSet(thisUserID, SymEncValue)
 
-	userlib.KeystoreSet(username + "EncryptionKey", userdata.EncryptionKey)
+	userlib.KeystoreSet(username+"EncryptionKey", userdata.EncryptionKey)
+	userlib.KeystoreSet(username+"VerifyKey", userdata.VerifyKey)
 	// userlib.KeystoreSet(VerifyUUID.String(), VerifyKey)
 	// userlib.KeystoreSet(EncryptionUUID.String(), EncryptionKey)
 	//End of toy implementation
@@ -286,7 +287,7 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 	}
 
 	marshalled = append(marshalled, pad...)
-	
+
 	encryptedData := userlib.SymEnc(key, userlib.RandomBytes(16), marshalled) //randomIV (second argument) may be a problem
 	userlib.DebugMsg("APPEND marshalled: %v", marshalled)
 	userlib.DatastoreSet(u, encryptedData)
@@ -306,14 +307,14 @@ func (userdata *User) LoadFile(filename string) (dataBytes []byte, err error) {
 	marshalleddata := userlib.SymDec(key, encdata)
 	//userlib.DebugMsg("Marshalled Data before depadding: %v", marshalleddata)
 	lastbyte := marshalleddata[len(marshalleddata)-1]
-	
+
 	marshalleddata = marshalleddata[0 : len(marshalleddata)-int(lastbyte)]
 	//userlib.DebugMsg("Marshalled Data after depadding: %v", marshalleddata)
 	chunkarray := []Chunk{}
 	json.Unmarshal(marshalleddata, &chunkarray)
 	//userlib.DebugMsg("chunkarray: %v", chunkarray)
 	filedata := make([]byte, 0)
-	
+
 	for i := 0; i < len(chunkarray); i++ {
 		chunk := chunkarray[i]
 		encdata, _ = userlib.DatastoreGet(chunk.UUID)
@@ -334,18 +335,46 @@ func (userdata *User) LoadFile(filename string) (dataBytes []byte, err error) {
 //idea: shared files will now be under the username of the sharee.
 func (userdata *User) ShareFile(filename string, recipient string) (
 	accessToken uuid.UUID, err error) {
-	
 
+	u := userdata.FilenameUUID[filename]
+	ubytearray := []byte(u.String())
+	k := userdata.FilenameKey[filename]
+	twoelementarray := make([][]byte, 2)
+	twoelementarray[0] = ubytearray
+	twoelementarray[1] = k
+	marshalledarray, _ := json.Marshal(twoelementarray)
 
+	recipientkey, _ := userlib.KeystoreGet(recipient + "EncryptionKey")
 
-	return
+	encrypted, _ := userlib.PKEEnc(recipientkey, marshalledarray)
+	signkey := userdata.SignKey
+	signature, _ := userlib.DSSign(signkey, encrypted)
+	u = uuid.New()
+	magic := append(encrypted, signature...)
+	userlib.DatastoreSet(u, magic)
+	return u, nil
 }
 
 // ReceiveFile is documented at:
 // https://cs161.org/assets/projects/2/docs/client_api/receivefile.html
 func (userdata *User) ReceiveFile(filename string, sender string,
 	accessToken uuid.UUID) error {
-	return nil
+	magic, _ := userlib.DatastoreGet(accessToken)
+	senderverifykey, _ := userlib.KeystoreGet(sender + "VerifyKey")
+	if (userlib.DSVerify(senderverifykey, magic[0:len(magic)-256], magic[len(magic)-256:len(magic)])) == nil {
+
+		marshalledarray, _ := userlib.PKEDec(userdata.DecryptionKey, magic[0:len(magic)-256])
+		twoelementarray := [][]byte{}
+		json.Unmarshal(marshalledarray, &twoelementarray)
+		ubyte := twoelementarray[0]
+		ustring := string(ubyte)
+		u := uuid.MustParse(ustring)
+		k := twoelementarray[1]
+		userdata.FilenameUUID[filename] = u
+		userdata.FilenameKey[filename] = k
+		return nil
+	}
+	return errors.New("Signature incorrect")
 }
 
 // RevokeFile is documented at:
