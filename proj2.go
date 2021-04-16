@@ -142,6 +142,7 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	thisUserID, _ := uuid.FromBytes(byteArrayUsername)
 	userlib.DatastoreSet(thisUserID, SymEncValue)
 
+	userlib.KeystoreSet(username + "EncryptionKey", userdata.EncryptionKey)
 	// userlib.KeystoreSet(VerifyUUID.String(), VerifyKey)
 	// userlib.KeystoreSet(EncryptionUUID.String(), EncryptionKey)
 	//End of toy implementation
@@ -333,6 +334,9 @@ func (userdata *User) LoadFile(filename string) (dataBytes []byte, err error) {
 //idea: shared files will now be under the username of the sharee.
 func (userdata *User) ShareFile(filename string, recipient string) (
 	accessToken uuid.UUID, err error) {
+	
+
+
 
 	return
 }
