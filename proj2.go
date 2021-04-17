@@ -355,7 +355,7 @@ func (userdata *User) LoadFile(filename string) (dataBytes []byte, err error) {
 	if len(key) == 0 {
 		return nil, errors.New("Key not found.")
 	}
-	if len(encdata) %16 != 0{
+	if len(encdata) %16 != 0 || len(encdata) == 0{
 		return nil, errors.New("Ciphertext error.")
 	}
 	marshalleddata := userlib.SymDec(key, encdata)
