@@ -196,7 +196,7 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 	userRet := User{}
 	json.Unmarshal(d, &userRet)
 
-	userlib.DebugMsg("Correct. You are now logged in!")
+	//userlib.DebugMsg("Correct. You are now logged in!")
 
 	//userlib.DebugMsg("Incorrect. Please try again.")errors.New(strings.ToTitle("Password Incorrect!"))
 
