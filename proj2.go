@@ -312,6 +312,9 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 	if len(key) == 0 {
 		return errors.New("Key not found.")
 	}
+	if len(encdata) %16 != 0{
+		return nil, errors.New("Ciphertext error.")
+	}
 	marshalleddata := userlib.SymDec(key, encdata)
 
 	lastbyte := marshalleddata[len(marshalleddata)-1]
@@ -351,6 +354,9 @@ func (userdata *User) LoadFile(filename string) (dataBytes []byte, err error) {
 	encdata, _ := userlib.DatastoreGet(u)
 	if len(key) == 0 {
 		return nil, errors.New("Key not found.")
+	}
+	if len(encdata) %16 != 0{
+		return nil, errors.New("Ciphertext error.")
 	}
 	marshalleddata := userlib.SymDec(key, encdata)
 	//userlib.DebugMsg("Marshalled Data before depadding: %v", marshalleddata)
@@ -421,7 +427,15 @@ func (userdata *User) ShareFile(filename string, recipient string) (
 func (userdata *User) ReceiveFile(filename string, sender string,
 	accessToken uuid.UUID) error {
 	magic, _ := userlib.DatastoreGet(accessToken)
+
+	if _ != nil{
+		return errors.New("incorrect Access Token")
+	}
 	senderverifykey, _ := userlib.KeystoreGet(sender + "VerifyKey")
+
+	if _ != nil {
+		return errors.New("Verify Key error!")
+	}
 	if (userlib.DSVerify(senderverifykey, magic[0:len(magic)-256], magic[len(magic)-256:len(magic)])) == nil {
 
 		marshalledarray, _ := userlib.PKEDec(userdata.DecryptionKey, magic[0:len(magic)-256])
