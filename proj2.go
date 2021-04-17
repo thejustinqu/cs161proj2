@@ -359,7 +359,7 @@ func (userdata *User) LoadFile(filename string) (dataBytes []byte, err error) {
 		return nil, errors.New("Ciphertext error.")
 	}
 	marshalleddata := userlib.SymDec(key, encdata)
-	if len(marshalleddata) >= 0 {
+	if len(marshalleddata) <= 0 {
 		return nil, errors.New("Marshalled data error.")
 	}
 	//userlib.DebugMsg("Marshalled Data before depadding: %v", marshalleddata)
