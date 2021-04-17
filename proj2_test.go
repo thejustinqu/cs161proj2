@@ -37,12 +37,19 @@ func TestInits(t *testing.T) {
 	//}
 	//t.Log("logged in to", ua)
 	u, err := InitUser("alice", "fubar")
+	
 	if err != nil {
 		// t.Error says the test fails
 		t.Error("Failed to initialize user", err)
 		return
 	}
-
+	o, err := InitUser("alice", "fubar")
+	if err == nil {
+		// t.Error says the test fails
+		t.Error("User already exists", err)
+		return
+	}
+	t.Log(o)
 	a, err1 := GetUser("alice", "fuba")
 
 	if err1 != nil {
