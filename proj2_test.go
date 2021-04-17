@@ -126,7 +126,7 @@ func TestRevoke(t *testing.T){
 		t.Error("Failed to initialize user", err)
 		return
 	}
-	t.Log("datastore post INIT:" , datastoreAttack)
+	//t.Log("datastore post INIT:" , datastoreAttack)
 	err1 := u.StoreFile("file1", v)
 	if err1 != nil {
 		t.Error("Failed to upload", err1)
@@ -161,7 +161,8 @@ func TestRevoke(t *testing.T){
 		t.Error("This did not succeed??", err3)
 		return
 	}
-
+	loaded, err3 := u.LoadFile("file1")
+	t.Log(loaded)
 	err = u.RevokeFile("file1", "Legit")
 
 	if err != nil{
@@ -175,6 +176,13 @@ func TestRevoke(t *testing.T){
 		t.Error("This did not fail??", err3)
 		return
 	}
+	loaded, err3 = u.LoadFile("file1")
+	
+	if err3 != nil { 
+		t.Error("This did fail??", err3)
+		return
+	}
+	
 	
 }
 func TestInvalidFile(t *testing.T) {

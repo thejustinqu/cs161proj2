@@ -131,6 +131,7 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	userdata.FilenameUUID = make(map[string]userlib.UUID)
 	userdata.FilenameKey = make(map[string][]byte)
 	userdata.SharedFiles = make(map[string][]string)
+
 	//userlib.DebugMsg("UserInitData is: %v", userdata)
 	d, _ := json.Marshal(userdata)
 	remainder := len(d) % 16
@@ -251,6 +252,7 @@ func (userdata *User) StoreFile(filename string, data []byte) (err error) {
 		userlib.DatastoreSet(u, encdata)
 		userdata.FilenameUUID[filename] = u
 		userdata.FilenameKey[filename] = key
+		userdata.SharedFiles[filename] = append(userdata.SharedFiles[filename], userdata.Username)
 	} else {
 		k := userlib.RandomBytes(16)
 		u := uuid.New()
@@ -280,6 +282,7 @@ func (userdata *User) StoreFile(filename string, data []byte) (err error) {
 		marshalled = append(marshalled, pad...)
 		encdata = userlib.SymEnc(k, userlib.RandomBytes(16), marshalled)
 		userlib.DatastoreSet(u, encdata)
+		userdata.SharedFiles[filename] = append(userdata.SharedFiles[filename], userdata.Username)
 	}
 
 	//userlib.DebugMsg("post store uuid: %v", userdata.FilenameUUID)
@@ -320,7 +323,7 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 	lastbyte := marshalleddata[len(marshalleddata)-1]
 	marshalleddata = marshalleddata[0 : len(marshalleddata)-int(lastbyte)]
 
-	userlib.DebugMsg("post depad marshalled: %v", marshalleddata)
+	//userlib.DebugMsg("post depad marshalled: %v", marshalleddata)
 	chunkarray := []Chunk{}
 	json.Unmarshal(marshalleddata, &chunkarray)
 
@@ -337,7 +340,7 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 	marshalled = append(marshalled, pad...)
 
 	encryptedData := userlib.SymEnc(key, userlib.RandomBytes(16), marshalled) //randomIV (second argument) may be a problem
-	userlib.DebugMsg("APPEND marshalled: %v", marshalled)
+	//userlib.DebugMsg("APPEND marshalled: %v", marshalled)
 	userlib.DatastoreSet(u, encryptedData)
 
 	return nil
@@ -485,7 +488,7 @@ func (userdata *User) RevokeFile(filename string, targetUsername string) (err er
 		userlib.DatastoreDelete(oldu)
 		chunkarray[i] = chunk
 	}
-
+	userlib.DebugMsg("ChunkArray Pre: %v", chunkarray)
 	marshalleddata, _ = json.Marshal(chunkarray)
 	userlib.DatastoreDelete(u)
 	u = uuid.New()
@@ -495,7 +498,9 @@ func (userdata *User) RevokeFile(filename string, targetUsername string) (err er
 	sharedusers := userdata.SharedFiles[filename]
 	location := 0
 	for i := 0; i < len(sharedusers); i++ {
+		userlib.DebugMsg(sharedusers[i])
 		if sharedusers[i] == targetUsername {
+			
 			location = i
 			break
 		}
@@ -505,5 +510,10 @@ func (userdata *User) RevokeFile(filename string, targetUsername string) (err er
 	for i := 0; i < len(sharedusers); i++ {
 		userdata.ShareFile(filename, sharedusers[i])
 	}
+	chunkarraycheck,_:=userlib.DatastoreGet(u)
+	unmarshalledchunks := []Chunk{}
+	json.Unmarshal(chunkarraycheck, &unmarshalledchunks)
+	userlib.DebugMsg("unmarshalled chunks: %v", unmarshalledchunks)
+	userlib.DebugMsg("ChunkArray Post: %v", chunkarray)
 	return nil
 }
