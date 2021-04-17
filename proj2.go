@@ -183,7 +183,7 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 	if !error {
 		return nil, errors.New(strings.ToTitle("Username not found!"))
 	}
-	
+
 	returnvalue := userlib.SymDec(argonKey, encrypted)
 
 	padlength := returnvalue[len(returnvalue)-1]
@@ -200,7 +200,7 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 	//userlib.DebugMsg("Correct. You are now logged in!")
 
 	//userlib.DebugMsg("Incorrect. Please try again.")errors.New(strings.ToTitle("Password Incorrect!"))
-	if userRet.Username == ""{
+	if userRet.Username == "" {
 		return nil, errors.New(strings.ToTitle("Password incorrect!"))
 	}
 	return &userRet, nil
@@ -220,36 +220,67 @@ func (userdata *User) StoreFile(filename string, data []byte) (err error) {
 	//jsonData, _ := json.Marshal(data)
 	//userlib.DatastoreSet(storageKey, jsonData)
 	//End of toy implementation
-	key := userlib.RandomBytes(16)
-	remainder := len(data) % 16
-	pad := make([]byte, 16-remainder)
-	for i := 0; i < 16-remainder; i++ {
-		pad[i] = byte(16 - remainder)
-	}
-	newdata := append(data, pad...)
-	u := uuid.New()
-	encdata := userlib.SymEnc(key, userlib.RandomBytes(16), newdata)
-	userlib.DatastoreSet(u, encdata)
-	var c Chunk
-	c.UUID = u
-	c.Key = key
-	var chunkarray []Chunk
-	key = userlib.RandomBytes(16)
-	u = uuid.New()
-	chunkarray = append(chunkarray, c)
-	marshalled, _ := json.Marshal(chunkarray)
+	if userdata.FilenameKey[filename] == nil {
+		key := userlib.RandomBytes(16)
+		remainder := len(data) % 16
+		pad := make([]byte, 16-remainder)
+		for i := 0; i < 16-remainder; i++ {
+			pad[i] = byte(16 - remainder)
+		}
+		newdata := append(data, pad...)
+		u := uuid.New()
+		encdata := userlib.SymEnc(key, userlib.RandomBytes(16), newdata)
+		userlib.DatastoreSet(u, encdata)
+		var c Chunk
+		c.UUID = u
+		c.Key = key
+		var chunkarray []Chunk
+		key = userlib.RandomBytes(16)
+		u = uuid.New()
+		chunkarray = append(chunkarray, c)
+		marshalled, _ := json.Marshal(chunkarray)
 
-	remainder = len(marshalled) % 16
-	pad = make([]byte, 16-remainder)
-	for i := 0; i < 16-remainder; i++ {
-		pad[i] = byte(16 - remainder)
+		remainder = len(marshalled) % 16
+		pad = make([]byte, 16-remainder)
+		for i := 0; i < 16-remainder; i++ {
+			pad[i] = byte(16 - remainder)
+		}
+		marshalled = append(marshalled, pad...)
+		userlib.DebugMsg("Marshalled in StoreFile Pad check: %v", marshalled)
+		encdata = userlib.SymEnc(key, userlib.RandomBytes(16), marshalled)
+		userlib.DatastoreSet(u, encdata)
+		userdata.FilenameUUID[filename] = u
+		userdata.FilenameKey[filename] = key
+	} else {
+		k := userlib.RandomBytes(16)
+		u := uuid.New()
+		remainder := len(data) % 16
+		pad := make([]byte, 16-remainder)
+		for i := 0; i < 16-remainder; i++ {
+			pad[i] = byte(16 - remainder)
+		}
+		newdata := append(data, pad...)
+		encdata := userlib.SymEnc(k, userlib.RandomBytes(16), newdata)
+		userlib.DatastoreSet(u, encdata)
+
+		var c Chunk
+		c.UUID = u
+		c.Key = k
+
+		u = userdata.FilenameUUID[filename]
+		k = userdata.FilenameKey[filename]
+		var chunkarray []Chunk
+		chunkarray = append(chunkarray, c)
+		marshalled, _ := json.Marshal(chunkarray)
+		remainder = len(marshalled) % 16
+		pad = make([]byte, 16-remainder)
+		for i := 0; i < 16-remainder; i++ {
+			pad[i] = byte(16 - remainder)
+		}
+		marshalled = append(marshalled, pad...)
+		encdata = userlib.SymEnc(k, userlib.RandomBytes(16), marshalled)
+		userlib.DatastoreSet(u, encdata)
 	}
-	marshalled = append(marshalled, pad...)
-	userlib.DebugMsg("Marshalled in StoreFile Pad check: %v", marshalled)
-	encdata = userlib.SymEnc(key, userlib.RandomBytes(16), marshalled)
-	userlib.DatastoreSet(u, encdata)
-	userdata.FilenameUUID[filename] = u
-	userdata.FilenameKey[filename] = key
 
 	//userlib.DebugMsg("post store uuid: %v", userdata.FilenameUUID)
 	//userlib.DebugMsg("post store key: %v", userdata.FilenameKey)
@@ -278,7 +309,7 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 	key = userdata.FilenameKey[filename]
 
 	encdata, _ = userlib.DatastoreGet(u)
-	if len(key) == 0{
+	if len(key) == 0 {
 		return errors.New("Key not found.")
 	}
 	marshalleddata := userlib.SymDec(key, encdata)
@@ -318,7 +349,7 @@ func (userdata *User) LoadFile(filename string) (dataBytes []byte, err error) {
 	key := userdata.FilenameKey[filename]
 
 	encdata, _ := userlib.DatastoreGet(u)
-	if len(key) == 0{
+	if len(key) == 0 {
 		return nil, errors.New("Key not found.")
 	}
 	marshalleddata := userlib.SymDec(key, encdata)
@@ -335,7 +366,7 @@ func (userdata *User) LoadFile(filename string) (dataBytes []byte, err error) {
 	for i := 0; i < len(chunkarray); i++ {
 		chunk := chunkarray[i]
 		encdata, _ = userlib.DatastoreGet(chunk.UUID)
-		if len(chunk.Key) == 0{
+		if len(chunk.Key) == 0 {
 			return nil, errors.New("Key not found.")
 		}
 		decdata := userlib.SymDec(chunk.Key, encdata)
@@ -415,7 +446,7 @@ func (userdata *User) RevokeFile(filename string, targetUsername string) (err er
 	key := userdata.FilenameKey[filename]
 
 	encdata, _ := userlib.DatastoreGet(u)
-	if len(key) == 0{
+	if len(key) == 0 {
 		return errors.New("Key not found.")
 	}
 	marshalleddata := userlib.SymDec(key, encdata)
