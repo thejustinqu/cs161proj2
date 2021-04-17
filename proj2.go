@@ -359,15 +359,15 @@ func (userdata *User) LoadFile(filename string) (dataBytes []byte, err error) {
 		return nil, errors.New("Ciphertext error.")
 	}
 	marshalleddata := userlib.SymDec(key, encdata)
-	if len(marshalleddata) == 0 {
+	if len(marshalleddata) >= 0 {
 		return nil, errors.New("Marshalled data error.")
 	}
 	//userlib.DebugMsg("Marshalled Data before depadding: %v", marshalleddata)
 	lastbyte := marshalleddata[len(marshalleddata)-1]
-	if len(marshalleddata)-int(lastbyte) > len(marshalleddata){
+	//if len(marshalleddata)-int(lastbyte) > len(marshalleddata){
 
-		return nil, errors.New("Marshalled data error.")
-	}
+	//	return nil, errors.New("Marshalled data error.")
+	//}
 	marshalleddata = marshalleddata[0 : len(marshalleddata)-int(lastbyte)]
 	//userlib.DebugMsg("Marshalled Data after depadding: %v", marshalleddata)
 	chunkarray := []Chunk{}
