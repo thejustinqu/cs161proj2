@@ -313,7 +313,7 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 		return errors.New("Key not found.")
 	}
 	if len(encdata) %16 != 0{
-		return nil, errors.New("Ciphertext error.")
+		return errors.New("Ciphertext error.")
 	}
 	marshalleddata := userlib.SymDec(key, encdata)
 
@@ -426,14 +426,14 @@ func (userdata *User) ShareFile(filename string, recipient string) (
 // https://cs161.org/assets/projects/2/docs/client_api/receivefile.html
 func (userdata *User) ReceiveFile(filename string, sender string,
 	accessToken uuid.UUID) error {
-	magic, _ := userlib.DatastoreGet(accessToken)
+	magic, err := userlib.DatastoreGet(accessToken)
 
-	if _ != nil{
+	if err != nil{
 		return errors.New("incorrect Access Token")
 	}
-	senderverifykey, _ := userlib.KeystoreGet(sender + "VerifyKey")
+	senderverifykey, err := userlib.KeystoreGet(sender + "VerifyKey")
 
-	if _ != nil {
+	if err != nil {
 		return errors.New("Verify Key error!")
 	}
 	if (userlib.DSVerify(senderverifykey, magic[0:len(magic)-256], magic[len(magic)-256:len(magic)])) == nil {
