@@ -101,7 +101,69 @@ func TestStorage(t *testing.T) {
 
 	t.Log(v3)
 }
+func TestRevoke(t *testing.T){
+	clear()
+	userlib.SetDebugStatus(true)
+	var accessToken uuid.UUID
+	v := []byte("This is a test")
 
+	toAppend := []byte("Append this.")
+	u, err := InitUser("Creator", "fubar")
+	if err != nil {
+		t.Error("Failed to initialize user", err)
+		return
+	}
+
+	err1 := u.StoreFile("file1", v)
+	if err1 != nil {
+		t.Error("Failed to upload", err1)
+		return
+	}
+
+	
+
+	l, err := InitUser("Legit", "fubar")
+	err3 := l.AppendFile("file1", toAppend)
+
+	if err3 == nil { 
+		t.Error("This did not fail??", err3)
+		return
+	}
+
+	accessToken, err = u.ShareFile("file1", "Legit")
+	if err != nil {
+		t.Error("Failed to share the a file", err)
+		return
+	}
+	
+	err = l.ReceiveFile("file2", "Creator", accessToken)
+	if err != nil {
+		t.Error("Failed to receive the share message", err)
+		return
+	}
+
+	err3 = l.AppendFile("file2", toAppend)
+
+	if err3 != nil { 
+		t.Error("This did not succeed??", err3)
+		return
+	}
+
+	err = u.RevokeFile("file1", "Legit")
+
+	if err != nil{
+		t.Error("Something went wrong with revoke!")
+		return
+	}
+
+	err3 = l.AppendFile("file1", toAppend)
+
+	if err3 == nil { 
+		t.Error("This did not fail??", err3)
+		return
+	}
+
+}
 func TestInvalidFile(t *testing.T) {
 	clear()
 	u, err := InitUser("alice", "fubar")
