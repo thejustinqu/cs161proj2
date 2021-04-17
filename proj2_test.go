@@ -44,7 +44,7 @@ func TestInits(t *testing.T) {
 		return
 	}
 	o, err := InitUser("alice", "fubar")
-	if err == nil {
+	if err != nil {
 		// t.Error says the test fails
 		t.Error("User already exists", err)
 		return
