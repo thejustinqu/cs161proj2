@@ -1,4 +1,5 @@
 package proj2
+
 // You MUST NOT change these default imports.  ANY additional imports it will
 // break the autograder and everyone will be sad.
 
@@ -79,7 +80,7 @@ func TestStorage(t *testing.T) {
 		t.Error("Failed to append", err3)
 		return
 	}
-	
+
 	v2, err2 := u.LoadFile("file1")
 	if err2 != nil {
 		t.Error("Failed to upload and download", err2)

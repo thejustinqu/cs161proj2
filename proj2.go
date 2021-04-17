@@ -82,6 +82,7 @@ type User struct {
 	Password      string
 	FilenameUUID  map[string]userlib.UUID
 	FilenameKey   map[string][]byte
+	SharedFiles   map[string][]string
 	VerifyKey     userlib.PublicKeyType
 	SignKey       userlib.PrivateKeyType
 	EncryptionKey userlib.PublicKeyType
@@ -124,6 +125,7 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	userdata.DecryptionKey = DecryptionKey
 	userdata.FilenameUUID = make(map[string]userlib.UUID)
 	userdata.FilenameKey = make(map[string][]byte)
+	userdata.SharedFiles = make(map[string][]string)
 	//userlib.DebugMsg("UserInitData is: %v", userdata)
 	d, _ := json.Marshal(userdata)
 	remainder := len(d) % 16
@@ -352,6 +354,17 @@ func (userdata *User) ShareFile(filename string, recipient string) (
 	u = uuid.New()
 	magic := append(encrypted, signature...)
 	userlib.DatastoreSet(u, magic)
+
+	recipientarray := make([]string, 1)
+	recipientarray[0] = recipient
+	if userdata.SharedFiles[filename] == nil {
+		sharedusers := make([]string, 0)
+		sharedusers = append(sharedusers, recipientarray...)
+		userdata.SharedFiles[filename] = sharedusers
+	} else {
+		userdata.SharedFiles[filename] = append(userdata.SharedFiles[filename], recipientarray...)
+	}
+
 	return u, nil
 }
 
@@ -380,5 +393,43 @@ func (userdata *User) ReceiveFile(filename string, sender string,
 // RevokeFile is documented at:
 // https://cs161.org/assets/projects/2/docs/client_api/revokefile.html
 func (userdata *User) RevokeFile(filename string, targetUsername string) (err error) {
+
+	u := userdata.FilenameUUID[filename]
+	key := userdata.FilenameKey[filename]
+
+	encdata, _ := userlib.DatastoreGet(u)
+	marshalleddata := userlib.SymDec(key, encdata)
+	lastbyte := marshalleddata[len(marshalleddata)-1]
+
+	marshalleddata = marshalleddata[0 : len(marshalleddata)-int(lastbyte)]
+	chunkarray := []Chunk{}
+	json.Unmarshal(marshalleddata, &chunkarray)
+
+	for i := 0; i < len(chunkarray); i++ {
+		chunk := chunkarray[i]
+		encdata, _ = userlib.DatastoreGet(chunk.UUID)
+		chunk.UUID = uuid.New()
+		userlib.DatastoreSet(chunk.UUID, encdata)
+		chunkarray[i] = chunk
+	}
+
+	marshalleddata, _ = json.Marshal(chunkarray)
+	u = uuid.New()
+	userlib.DatastoreSet(u, marshalleddata)
+	userdata.FilenameUUID[filename] = u
+
+	sharedusers := userdata.SharedFiles[filename]
+	location := 0
+	for i := 0; i < len(sharedusers); i++ {
+		if sharedusers[i] == targetUsername {
+			location = i
+			break
+		}
+	}
+
+	sharedusers = append(sharedusers[:location], sharedusers[location+1:]...)
+	for i := 0; i < len(sharedusers); i++ {
+		userdata.ShareFile(filename, sharedusers[i])
+	}
 	return
 }
