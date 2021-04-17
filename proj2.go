@@ -476,8 +476,10 @@ func (userdata *User) RevokeFile(filename string, targetUsername string) (err er
 	for i := 0; i < len(chunkarray); i++ {
 		chunk := chunkarray[i]
 		encdata, _ = userlib.DatastoreGet(chunk.UUID)
+		oldu := chunk.UUID
 		chunk.UUID = uuid.New()
 		userlib.DatastoreSet(chunk.UUID, encdata)
+		userlib.DatastoreDelete(oldu)
 		chunkarray[i] = chunk
 	}
 

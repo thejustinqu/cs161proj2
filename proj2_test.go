@@ -105,6 +105,12 @@ func TestRevoke(t *testing.T){
 	clear()
 	userlib.SetDebugStatus(true)
 	var accessToken uuid.UUID
+	var datastoreAttack map[uuid.UUID][]byte
+
+	datastoreAttack = userlib.DatastoreGetMap()
+
+	t.Log(datastoreAttack)
+	
 	v := []byte("This is a test")
 
 	toAppend := []byte("Append this.")
@@ -113,7 +119,7 @@ func TestRevoke(t *testing.T){
 		t.Error("Failed to initialize user", err)
 		return
 	}
-
+	t.Log("datastore post INIT:" , datastoreAttack)
 	err1 := u.StoreFile("file1", v)
 	if err1 != nil {
 		t.Error("Failed to upload", err1)
@@ -162,7 +168,7 @@ func TestRevoke(t *testing.T){
 		t.Error("This did not fail??", err3)
 		return
 	}
-
+	
 }
 func TestInvalidFile(t *testing.T) {
 	clear()
