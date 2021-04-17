@@ -99,6 +99,11 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	if username == "" || password == "" {
 		return nil, errors.New("empty username or empty password - please fill them out.")
 	}
+	_, test := userlib.KeystoreGet(username + "EncryptionKey")
+	if test {
+		return nil, errors.New("username already exists")
+	}
+
 	var userdata User
 	userdataptr = &userdata
 	var VerifyKey userlib.DSVerifyKey
@@ -274,6 +279,7 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 
 	lastbyte := marshalleddata[len(marshalleddata)-1]
 	marshalleddata = marshalleddata[0 : len(marshalleddata)-int(lastbyte)]
+
 	userlib.DebugMsg("post depad marshalled: %v", marshalleddata)
 	chunkarray := []Chunk{}
 	json.Unmarshal(marshalleddata, &chunkarray)
