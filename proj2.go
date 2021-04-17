@@ -426,14 +426,14 @@ func (userdata *User) ShareFile(filename string, recipient string) (
 // https://cs161.org/assets/projects/2/docs/client_api/receivefile.html
 func (userdata *User) ReceiveFile(filename string, sender string,
 	accessToken uuid.UUID) error {
-	magic, err := userlib.DatastoreGet(accessToken)
+	magic, gotten := userlib.DatastoreGet(accessToken)
 
-	if err != nil{
+	if gotten == false{
 		return errors.New("incorrect Access Token")
 	}
-	senderverifykey, err := userlib.KeystoreGet(sender + "VerifyKey")
+	senderverifykey, gotten := userlib.KeystoreGet(sender + "VerifyKey")
 
-	if err != nil {
+	if gotten  == false {
 		return errors.New("Verify Key error!")
 	}
 	if (userlib.DSVerify(senderverifykey, magic[0:len(magic)-256], magic[len(magic)-256:len(magic)])) == nil {
