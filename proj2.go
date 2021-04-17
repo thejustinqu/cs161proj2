@@ -322,13 +322,13 @@ func (userdata *User) LoadFile(filename string) (dataBytes []byte, err error) {
 		encdata, _ = userlib.DatastoreGet(chunk.UUID)
 
 		decdata := userlib.SymDec(chunk.Key, encdata)
-		userlib.DebugMsg("decrypteddata: %v", decdata)
+		//userlib.DebugMsg("decrypteddata: %v", decdata)
 		lastbyte := decdata[len(decdata)-1]
 		decdata = decdata[0 : len(decdata)-int(lastbyte)]
 		filedata = append(filedata, decdata...)
-		userlib.DebugMsg("filedata: %v", filedata)
+		//userlib.DebugMsg("filedata: %v", filedata)
 	}
-
+	userlib.DebugMsg("Filedata is: %v", filedata)
 	return filedata, nil
 }
 
@@ -431,5 +431,5 @@ func (userdata *User) RevokeFile(filename string, targetUsername string) (err er
 	for i := 0; i < len(sharedusers); i++ {
 		userdata.ShareFile(filename, sharedusers[i])
 	}
-	return
+	return nil 
 }

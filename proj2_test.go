@@ -119,6 +119,7 @@ func TestInvalidFile(t *testing.T) {
 
 func TestShare(t *testing.T) {
 	clear()
+	userlib.SetDebugStatus(true)
 	u, err := InitUser("alice", "fubar")
 	if err != nil {
 		t.Error("Failed to initialize user", err)
@@ -158,6 +159,22 @@ func TestShare(t *testing.T) {
 		t.Error("Failed to download the file after sharing", err)
 		return
 	}
+
+	err = u.RevokeFile("file1", "bob")
+
+	if err != nil{
+		t.Error("Something went wrong with revoke!")
+		return
+	}
+
+	v3, err := u2.LoadFile("file2")
+
+	if err == nil{
+		t.Error("revocation unsuccessful.")
+		return
+	}
+
+	t.Log(v3)
 	if !reflect.DeepEqual(v, v2) {
 		t.Error("Shared file is not the same", v, v2)
 		return
