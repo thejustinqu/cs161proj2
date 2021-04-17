@@ -183,6 +183,7 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 	if !error {
 		return nil, errors.New(strings.ToTitle("Username not found!"))
 	}
+	
 	returnvalue := userlib.SymDec(argonKey, encrypted)
 
 	padlength := returnvalue[len(returnvalue)-1]
@@ -199,7 +200,9 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 	//userlib.DebugMsg("Correct. You are now logged in!")
 
 	//userlib.DebugMsg("Incorrect. Please try again.")errors.New(strings.ToTitle("Password Incorrect!"))
-
+	if userRet.Username == ""{
+		return nil, errors.New(strings.ToTitle("Password incorrect!"))
+	}
 	return &userRet, nil
 }
 
@@ -275,6 +278,9 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 	key = userdata.FilenameKey[filename]
 
 	encdata, _ = userlib.DatastoreGet(u)
+	if len(key) == 0{
+		return errors.New("Key not found.")
+	}
 	marshalleddata := userlib.SymDec(key, encdata)
 
 	lastbyte := marshalleddata[len(marshalleddata)-1]
@@ -312,6 +318,9 @@ func (userdata *User) LoadFile(filename string) (dataBytes []byte, err error) {
 	key := userdata.FilenameKey[filename]
 
 	encdata, _ := userlib.DatastoreGet(u)
+	if len(key) == 0{
+		return nil, errors.New("Key not found.")
+	}
 	marshalleddata := userlib.SymDec(key, encdata)
 	//userlib.DebugMsg("Marshalled Data before depadding: %v", marshalleddata)
 	lastbyte := marshalleddata[len(marshalleddata)-1]
@@ -326,7 +335,9 @@ func (userdata *User) LoadFile(filename string) (dataBytes []byte, err error) {
 	for i := 0; i < len(chunkarray); i++ {
 		chunk := chunkarray[i]
 		encdata, _ = userlib.DatastoreGet(chunk.UUID)
-
+		if len(chunk.Key) == 0{
+			return nil, errors.New("Key not found.")
+		}
 		decdata := userlib.SymDec(chunk.Key, encdata)
 		//userlib.DebugMsg("decrypteddata: %v", decdata)
 		lastbyte := decdata[len(decdata)-1]
@@ -404,6 +415,9 @@ func (userdata *User) RevokeFile(filename string, targetUsername string) (err er
 	key := userdata.FilenameKey[filename]
 
 	encdata, _ := userlib.DatastoreGet(u)
+	if len(key) == 0{
+		return errors.New("Key not found.")
+	}
 	marshalleddata := userlib.SymDec(key, encdata)
 	lastbyte := marshalleddata[len(marshalleddata)-1]
 

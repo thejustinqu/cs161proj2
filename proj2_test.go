@@ -43,14 +43,14 @@ func TestInits(t *testing.T) {
 		return
 	}
 
-	a, err1 := GetUser("alice", "fubar")
+	a, err1 := GetUser("alice", "fuba")
 
 	if err1 != nil {
-		t.Error("Failed to BLAH BLAH BLAH", err1)
+		t.Error("Failed to log in, ", err1)
 		return
 	}
 
-	t.Log("Logged in to", a.Username)
+	t.Log("Logged in to", a)
 	// t.Log() only produces output if you run with "go test -v"
 	t.Log("Got user", u)
 	// If you want to comment the line above,
