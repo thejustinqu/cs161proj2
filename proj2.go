@@ -414,6 +414,7 @@ func (userdata *User) RevokeFile(filename string, targetUsername string) (err er
 	}
 
 	marshalleddata, _ = json.Marshal(chunkarray)
+	userlib.DatastoreDelete(u)
 	u = uuid.New()
 	userlib.DatastoreSet(u, marshalleddata)
 	userdata.FilenameUUID[filename] = u
@@ -431,5 +432,5 @@ func (userdata *User) RevokeFile(filename string, targetUsername string) (err er
 	for i := 0; i < len(sharedusers); i++ {
 		userdata.ShareFile(filename, sharedusers[i])
 	}
-	return nil 
+	return nil
 }
