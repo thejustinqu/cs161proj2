@@ -371,6 +371,9 @@ func (userdata *User) LoadFile(filename string) (dataBytes []byte, err error) {
 
 	//	return nil, errors.New("Marshalled data error.")
 	//}
+	if len(marshalleddata) <= 0 || int(lastbyte) > len(marshalleddata){
+		return nil, errors.New("Marshalled data error.")
+	}
 	marshalleddata = marshalleddata[0 : len(marshalleddata)-int(lastbyte)]
 	//userlib.DebugMsg("Marshalled Data after depadding: %v", marshalleddata)
 	chunkarray := []Chunk{}
